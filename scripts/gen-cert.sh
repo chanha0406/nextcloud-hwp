@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Generate RSA key + CSR for Nextcloud App Store code signing (app id: hwp_viewer).
+# Generate RSA key + CSR for Nextcloud App Store code signing (app id: hwpdocuments).
 # Keep the .key private. Submit the .csr via PR to:
 #   https://github.com/nextcloud/app-certificate-requests
 set -euo pipefail
 
-APP_ID="hwp_viewer"
+APP_ID="hwpdocuments"
 CERT_DIR="${CERT_DIR:-$HOME/.nextcloud/certificates}"
 KEY="$CERT_DIR/${APP_ID}.key"
 CSR="$CERT_DIR/${APP_ID}.csr"

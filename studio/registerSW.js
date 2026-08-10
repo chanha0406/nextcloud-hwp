@@ -1,1 +1,1 @@
-if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/custom_apps/hwp_viewer/studio/sw.js', { scope: '/custom_apps/hwp_viewer/studio/' })})}
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/custom_apps/hwpdocuments/studio/sw.js', { scope: '/custom_apps/hwpdocuments/studio/' })})}

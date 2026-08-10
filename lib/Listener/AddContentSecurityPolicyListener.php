@@ -7,7 +7,7 @@ declare(strict_types=1);
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-namespace OCA\HwpViewer\Listener;
+namespace OCA\HWPDocuments\Listener;
 
 use OCP\AppFramework\Http\EmptyContentSecurityPolicy;
 use OCP\EventDispatcher\Event;
@@ -24,7 +24,7 @@ class AddContentSecurityPolicyListener implements IEventListener {
 		$policy = new EmptyContentSecurityPolicy();
 		// rhwp-studio WASM
 		$policy->allowEvalWasm(true);
-		// Self-hosted studio iframe under /custom_apps/hwp_viewer/studio/
+		// Self-hosted studio iframe under /custom_apps/hwpdocuments/studio/
 		$policy->addAllowedFrameDomain('\'self\'');
 		$policy->addAllowedWorkerSrcDomain('\'self\'');
 		$policy->addAllowedWorkerSrcDomain('blob:');

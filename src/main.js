@@ -13,7 +13,7 @@ const MIMES = [
 ]
 
 /** Bump with appinfo version so browsers do not reuse stale chunks. */
-const ASSET_VERSION = '1.1.0'
+const ASSET_VERSION = '1.2.1'
 
 /**
  * @param {string} url
@@ -31,11 +31,11 @@ function withCacheBust(url) {
 function appJsUrl(name) {
 	let url
 	if (typeof OC !== 'undefined' && typeof OC.filePath === 'function') {
-		url = OC.filePath('hwp_viewer', 'js', name)
+		url = OC.filePath('hwpdocuments', 'js', name)
 	} else {
-		const base = (typeof OC !== 'undefined' && OC.appswebroots?.hwp_viewer)
-			? OC.appswebroots.hwp_viewer
-			: '/custom_apps/hwp_viewer'
+		const base = (typeof OC !== 'undefined' && OC.appswebroots?.hwpdocuments)
+			? OC.appswebroots.hwpdocuments
+			: '/custom_apps/hwpdocuments'
 		url = `${base}/js/${name}`
 	}
 	try {
@@ -47,13 +47,13 @@ function appJsUrl(name) {
 }
 
 /**
- * Self-hosted studio (mirrored under custom_apps/hwp_viewer/studio).
+ * Self-hosted studio (mirrored under custom_apps/hwpdocuments/studio).
  * @returns {string}
  */
 function studioUrl() {
-	const base = (typeof OC !== 'undefined' && OC.appswebroots?.hwp_viewer)
-		? OC.appswebroots.hwp_viewer
-		: '/custom_apps/hwp_viewer'
+	const base = (typeof OC !== 'undefined' && OC.appswebroots?.hwpdocuments)
+		? OC.appswebroots.hwpdocuments
+		: '/custom_apps/hwpdocuments'
 	try {
 		return new URL(`${base}/studio/index.html`, window.location.origin).href
 	} catch (e) {
@@ -69,7 +69,7 @@ let createEditorPromise = null
 function loadCreateEditor() {
 	if (!createEditorPromise) {
 		const url = appJsUrl('editor/index.js')
-		console.info('[hwp_viewer] importing @rhwp/editor', url)
+		console.info('[hwpdocuments] importing @rhwp/editor', url)
 		createEditorPromise = import(/* @vite-ignore */ url)
 			.then((mod) => mod.createEditor)
 			.catch((e) => {
@@ -86,7 +86,7 @@ function loadCreateEditor() {
  * @returns {Promise<ArrayBuffer>}
  */
 async function downloadFile(url, signal) {
-	console.info('[hwp_viewer] downloading', url)
+	console.info('[hwpdocuments] downloading', url)
 	const response = await fetch(url, {
 		credentials: 'same-origin',
 		signal,
@@ -98,7 +98,7 @@ async function downloadFile(url, signal) {
 		throw new Error(`Download failed: HTTP ${response.status}`)
 	}
 	const buffer = await response.arrayBuffer()
-	console.info('[hwp_viewer] downloaded bytes', buffer.byteLength)
+	console.info('[hwpdocuments] downloaded bytes', buffer.byteLength)
 	return buffer
 }
 
@@ -125,8 +125,8 @@ async function uploadFile(url, bytes, mime) {
 	}
 }
 
-const HwpViewer = {
-	name: 'HwpViewer',
+const HwpDocuments = {
+	name: 'HwpDocuments',
 
 	data() {
 		return {
@@ -211,7 +211,7 @@ const HwpViewer = {
 
 		syncLoad() {
 			if (!this.isActiveSlide) {
-				console.info('[hwp_viewer] slide inactive — pause')
+				console.info('[hwpdocuments] slide inactive — pause')
 				this.loadToken++
 				if (this.abortCtrl) {
 					this.abortCtrl.abort()
@@ -227,7 +227,7 @@ const HwpViewer = {
 
 			const url = this.fileUrl
 			if (!url) {
-				this.setStatus(this.t('hwp_viewer', 'Waiting for file URL…'))
+				this.setStatus(this.t('hwpdocuments', 'Waiting for file URL…'))
 				return
 			}
 
@@ -279,16 +279,16 @@ const HwpViewer = {
 			this.error = null
 			this.saveMessage = ''
 			this.loadingUrl = url
-			this.setStatus(this.t('hwp_viewer', 'Starting…'))
-			console.info('[hwp_viewer] load start', { token, url, active: this.active })
+			this.setStatus(this.t('hwpdocuments', 'Starting…'))
+			console.info('[hwpdocuments] load start', { token, url, active: this.active })
 
 			try {
-				this.setStatus(this.t('hwp_viewer', 'Loading editor and file…'))
+				this.setStatus(this.t('hwpdocuments', 'Loading editor and file…'))
 				const createEditor = await loadCreateEditor()
 				const buffer = await downloadFile(url, abort.signal)
 
 				if (this.isStale(token)) {
-					console.warn('[hwp_viewer] load cancelled after download', { token, current: this.loadToken })
+					console.warn('[hwpdocuments] load cancelled after download', { token, current: this.loadToken })
 					return
 				}
 
@@ -300,7 +300,7 @@ const HwpViewer = {
 					throw new Error('Editor mount point missing')
 				}
 
-				this.setStatus(this.t('hwp_viewer', 'Starting studio…'))
+				this.setStatus(this.t('hwpdocuments', 'Starting studio…'))
 				const editor = await createEditor(mount, {
 					studioUrl: studioUrl(),
 					width: '100%',
@@ -314,22 +314,22 @@ const HwpViewer = {
 				}
 
 				this.editor = editor
-				this.setStatus(this.t('hwp_viewer', 'Opening document…'))
+				this.setStatus(this.t('hwpdocuments', 'Opening document…'))
 				const result = await editor.loadFile(buffer, this.fileName, {
 					skipUnsavedGuard: true,
 					suppressDialogs: true,
 				})
-				console.info('[hwp_viewer] editor ready', result)
+				console.info('[hwpdocuments] editor ready', result)
 				this.setStatus('')
 				this.notifyDone()
 			} catch (e) {
 				if (this.isStale(token) || abort.signal.aborted) {
-					console.warn('[hwp_viewer] load aborted', e?.message || e)
+					console.warn('[hwpdocuments] load aborted', e?.message || e)
 					return
 				}
-				console.error('[hwp_viewer] editor error:', e)
+				console.error('[hwpdocuments] editor error:', e)
 				this.destroyEditor()
-				this.error = `${this.t('hwp_viewer', 'Failed to open editor.')} (${e?.message || e})`
+				this.error = `${this.t('hwpdocuments', 'Failed to open editor.')} (${e?.message || e})`
 				this.loading = false
 				this.loadingUrl = null
 				this.notifyDone()
@@ -341,7 +341,7 @@ const HwpViewer = {
 				return
 			}
 			this.saving = true
-			this.saveMessage = this.t('hwp_viewer', 'Saving…')
+			this.saveMessage = this.t('hwpdocuments', 'Saving…')
 			this.error = null
 			try {
 				const bytes = this.isHwpx
@@ -352,18 +352,18 @@ const HwpViewer = {
 				try {
 					await this.editor.notifySaved(this.fileName)
 				} catch (e) {
-					console.warn('[hwp_viewer] notifySaved skipped', e)
+					console.warn('[hwpdocuments] notifySaved skipped', e)
 				}
-				this.saveMessage = this.t('hwp_viewer', 'Saved')
+				this.saveMessage = this.t('hwpdocuments', 'Saved')
 				setTimeout(() => {
-					if (this.saveMessage === this.t('hwp_viewer', 'Saved')) {
+					if (this.saveMessage === this.t('hwpdocuments', 'Saved')) {
 						this.saveMessage = ''
 					}
 				}, 2500)
 			} catch (e) {
-				console.error('[hwp_viewer] save error:', e)
+				console.error('[hwpdocuments] save error:', e)
 				this.saveMessage = ''
-				this.error = `${this.t('hwp_viewer', 'Failed to save.')} (${e?.message || e})`
+				this.error = `${this.t('hwpdocuments', 'Failed to save.')} (${e?.message || e})`
 			} finally {
 				this.saving = false
 			}
@@ -373,36 +373,36 @@ const HwpViewer = {
 	render(h) {
 		const children = []
 
-		children.push(h('div', { class: 'hwp-viewer__toolbar' }, [
+		children.push(h('div', { class: 'hwp-documents__toolbar' }, [
 			h('button', {
 				attrs: {
 					type: 'button',
 					disabled: this.saving || this.loading || !this.editor || !!this.error,
 				},
 				on: { click: () => this.saveDocument() },
-			}, this.t('hwp_viewer', 'Save')),
+			}, this.t('hwpdocuments', 'Save')),
 			this.saveMessage
-				? h('span', { class: 'hwp-viewer__save-msg' }, this.saveMessage)
+				? h('span', { class: 'hwp-documents__save-msg' }, this.saveMessage)
 				: null,
 		]))
 
 		if (this.error) {
-			children.push(h('div', { class: 'hwp-viewer__error' }, [h('p', this.error)]))
+			children.push(h('div', { class: 'hwp-documents__error' }, [h('p', this.error)]))
 		} else if (this.loading) {
-			children.push(h('div', { class: 'hwp-viewer__status' }, [
-				h('p', this.status || this.t('hwp_viewer', 'Loading document…')),
+			children.push(h('div', { class: 'hwp-documents__status' }, [
+				h('p', this.status || this.t('hwpdocuments', 'Loading document…')),
 			]))
 		}
 
 		children.push(h('div', {
 			ref: 'editorEl',
-			class: 'hwp-viewer__editor',
+			class: 'hwp-documents__editor',
 			style: {
 				display: this.loading || this.error ? 'none' : 'block',
 			},
 		}))
 
-		return h('div', { class: 'hwp-viewer hwp-viewer--editor' }, children)
+		return h('div', { class: 'hwp-documents hwp-documents--editor' }, children)
 	},
 }
 
@@ -435,10 +435,10 @@ function registerNow(handler) {
 }
 
 const handler = {
-	id: 'hwp_viewer',
+	id: 'hwpdocuments',
 	group: null,
 	mimes: MIMES,
-	component: HwpViewer,
+	component: HwpDocuments,
 }
 
 queueHandler(handler)

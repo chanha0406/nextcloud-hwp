@@ -7,9 +7,9 @@ declare(strict_types=1);
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-namespace OCA\HwpViewer\AppInfo;
+namespace OCA\HWPDocuments\AppInfo;
 
-use OCA\HwpViewer\Listener\LoadViewerListener;
+use OCA\HWPDocuments\Listener\LoadViewerListener;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -18,7 +18,7 @@ use OCP\Files\IMimeTypeDetector;
 use OCP\Server;
 
 class Application extends App implements IBootstrap {
-	public const APP_ID = 'hwp_viewer';
+	public const APP_ID = 'hwpdocuments';
 
 	public function __construct() {
 		parent::__construct(self::APP_ID);
@@ -33,7 +33,7 @@ class Application extends App implements IBootstrap {
 		);
 		$context->registerEventListener(
 			\OCP\Security\CSP\AddContentSecurityPolicyEvent::class,
-			\OCA\HwpViewer\Listener\AddContentSecurityPolicyListener::class,
+			\OCA\HWPDocuments\Listener\AddContentSecurityPolicyListener::class,
 		);
 	}
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-.hwp-viewer {
+.hwp-documents {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
@@ -13,7 +13,7 @@
 	overflow: hidden;
 }
 
-.hwp-viewer__toolbar {
+.hwp-documents__toolbar {
 	display: flex;
 	align-items: center;
 	gap: 0.75rem;
@@ -24,43 +24,43 @@
 	z-index: 2;
 }
 
-.hwp-viewer__toolbar button {
+.hwp-documents__toolbar button {
 	min-width: 4rem;
 	padding: 0.35rem 0.75rem;
 	cursor: pointer;
 }
 
-.hwp-viewer__toolbar button:disabled {
+.hwp-documents__toolbar button:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
 
-.hwp-viewer__save-msg {
+.hwp-documents__save-msg {
 	font-size: 0.9rem;
 	color: var(--color-text-maxcontrast, #666);
 }
 
-.hwp-viewer__editor {
+.hwp-documents__editor {
 	flex: 1;
 	min-height: 0;
 	width: 100%;
 	position: relative;
 }
 
-.hwp-viewer__editor iframe {
+.hwp-documents__editor iframe {
 	width: 100%;
 	height: 100%;
 	border: 0;
 	display: block;
 }
 
-.hwp-viewer__status,
-.hwp-viewer__error {
+.hwp-documents__status,
+.hwp-documents__error {
 	margin: auto;
 	padding: 2rem;
 	text-align: center;
 }
 
-.hwp-viewer__error {
+.hwp-documents__error {
 	color: var(--color-error, #c00);
 }

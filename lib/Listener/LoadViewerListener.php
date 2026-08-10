@@ -7,9 +7,9 @@ declare(strict_types=1);
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-namespace OCA\HwpViewer\Listener;
+namespace OCA\HWPDocuments\Listener;
 
-use OCA\HwpViewer\AppInfo\Application;
+use OCA\HWPDocuments\AppInfo\Application;
 use OCA\Viewer\Event\LoadViewer;
 use OCP\EventDispatcher\Event;
 use OCP\EventDispatcher\IEventListener;
@@ -23,6 +23,6 @@ class LoadViewerListener implements IEventListener {
 		}
 
 		Util::addInitScript(Application::APP_ID, Application::APP_ID . '-main');
-		Util::addStyle(Application::APP_ID, 'viewer');
+		Util::addStyle(Application::APP_ID, 'hwpdocuments');
 	}
 }

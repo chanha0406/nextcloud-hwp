@@ -12,7 +12,7 @@
 #   NEXTCLOUD_ROOT if set and OCC unset, uses $NEXTCLOUD_ROOT/occ
 set -euo pipefail
 
-APP_ID="hwp_viewer"
+APP_ID="hwpdocuments"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CERT_DIR="${CERT_DIR:-$HOME/.nextcloud/certificates}"
 KEY="$CERT_DIR/${APP_ID}.key"
@@ -76,8 +76,8 @@ if [[ "$DO_BUILD" -eq 1 ]]; then
 	npm run build
 fi
 
-if [[ ! -f "$ROOT/js/hwp_viewer-main.mjs" ]]; then
-	echo "Missing js/hwp_viewer-main.mjs — run build first." >&2
+if [[ ! -f "$ROOT/js/hwpdocuments-main.mjs" ]]; then
+	echo "Missing js/hwpdocuments-main.mjs — run build first." >&2
 	exit 1
 fi
 if [[ ! -d "$ROOT/studio" || ! -f "$ROOT/studio/index.html" ]]; then

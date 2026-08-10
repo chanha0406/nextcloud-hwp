@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Re-download rhwp-studio static assets into ./studio
-# Rewrites /rhwp/ → /custom_apps/hwp_viewer/studio/
+# Rewrites /rhwp/ → /custom_apps/hwpdocuments/studio/
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TMP="${TMPDIR:-/tmp}/rhwp-studio-mirror-$$"
 BASE_URL="https://edwardkim.github.io/rhwp"
-APP_BASE="/custom_apps/hwp_viewer/studio"
+APP_BASE="/custom_apps/hwpdocuments/studio"
 
 cleanup() { rm -rf "$TMP"; }
 trap cleanup EXIT

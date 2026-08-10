@@ -1,17 +1,28 @@
 <?xml version="1.0"?>
 <info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
-	<id>hwp_viewer</id>
+	<id>hwpdocuments</id>
 	<name>HWP Documents</name>
+	<name lang="ko">HWP 문서</name>
 	<summary>Open and edit HWP and HWPX documents in Nextcloud</summary>
+	<summary lang="ko">Nextcloud에서 HWP·HWPX 문서를 열고 편집합니다</summary>
 	<description><![CDATA[
 Open Hangul Word Processor (.hwp / .hwpx) files for reading and editing inside Nextcloud.
 Uses a self-hosted rhwp-studio build via @rhwp/editor (WASM), with Save back to WebDAV.
 	]]></description>
-	<version>1.1.0</version>
+	<description lang="ko"><![CDATA[
+Nextcloud 안에서 한글(.hwp / .hwpx) 문서를 열고 편집합니다.
+앱에 포함한 rhwp-studio(@rhwp/editor, WASM)로 편집하며, 저장 시 WebDAV로 원본 파일에 씁니다.
+	]]></description>
+	<version>1.2.1</version>
 	<licence>agpl</licence>
 	<author mail="chanha0406@gmail.com" homepage="https://github.com/chanha0406">chanha0406</author>
-	<namespace>HwpViewer</namespace>
+	<namespace>HWPDocuments</namespace>
+	<documentation>
+		<user>https://github.com/chanha0406/nextcloud-hwp#사용</user>
+		<admin>https://github.com/chanha0406/nextcloud-hwp#설치</admin>
+		<developer>https://github.com/chanha0406/nextcloud-hwp#개발</developer>
+	</documentation>
 	<category>files</category>
 	<category>office</category>
 	<website>https://github.com/chanha0406/nextcloud-hwp</website>
@@ -25,10 +36,10 @@ Uses a self-hosted rhwp-studio build via @rhwp/editor (WASM), with Save back to 
 	</types>
 	<repair-steps>
 		<post-migration>
-			<step>OCA\HwpViewer\Migration\RegisterMimeType</step>
+			<step>OCA\HWPDocuments\Migration\RegisterMimeType</step>
 		</post-migration>
 		<install>
-			<step>OCA\HwpViewer\Migration\RegisterMimeType</step>
+			<step>OCA\HWPDocuments\Migration\RegisterMimeType</step>
 		</install>
 	</repair-steps>
 </info>
