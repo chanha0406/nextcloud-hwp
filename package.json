@@ -1,0 +1,24 @@
+{
+  "name": "hwp_viewer",
+  "version": "1.1.0",
+  "private": true,
+  "description": "View and edit HWP and HWPX documents in the Nextcloud Viewer",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "build": "vite build --mode production",
+    "dev": "vite build --mode development",
+    "watch": "vite build --mode development --watch"
+  },
+  "dependencies": {
+    "@rhwp/core": "^0.8.2",
+    "@rhwp/editor": "^0.8.2"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  },
+  "engines": {
+    "node": "^22.0.0",
+    "npm": "^10.5.0"
+  }
+}
