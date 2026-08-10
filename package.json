@@ -8,7 +8,10 @@
   "scripts": {
     "build": "vite build --mode production",
     "dev": "vite build --mode development",
-    "watch": "vite build --mode development --watch"
+    "watch": "vite build --mode development --watch",
+    "release": "scripts/build-release.sh",
+    "release:unsigned": "scripts/build-release.sh --no-sign",
+    "cert": "scripts/gen-cert.sh"
   },
   "dependencies": {
     "@rhwp/core": "^0.8.2",

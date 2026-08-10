@@ -112,6 +112,35 @@ npm run build    # 프로덕션
 
 산출물: `js/hwp_viewer-main.mjs`, `js/editor/*`
 
+## App Store 배포 패키지 · 서명
+
+스토어 업로드용 `tar.gz`와 (인증서가 있으면) 코드 서명을 만듭니다.
+
+```bash
+# 1) 한 번만: 키 + CSR 생성 (~/.nextcloud/certificates/hwp_viewer.*)
+npm run cert
+# CSR을 https://github.com/nextcloud/app-certificate-requests 에 PR로 제출
+# 승인된 .crt 를 같은 폴더에 hwp_viewer.crt 로 저장
+
+# 2) 프론트 빌드 + 스테이징 + (가능하면) integrity:sign-app + tar.gz
+npm run release
+# 서명 없이 패키지만: npm run release:unsigned
+```
+
+산출물: `build/artifacts/appstore/hwp_viewer-<version>.tar.gz`  
+인증서가 있으면 같은 경로에 `.tar.gz.sig`(App Store용 openssl 서명)도 생성됩니다.
+
+`integrity:sign-app`에는 `occ`가 필요합니다. 기본으로 Docker 컨테이너 `nextcloud-app`을 찾습니다. 다른 환경이면:
+
+```bash
+export OCC="php /path/to/nextcloud/occ"
+# 또는
+export NEXTCLOUD_ROOT=/path/to/nextcloud
+npm run release
+```
+
+업로드: [apps.nextcloud.com](https://apps.nextcloud.com/developer/apps/releases/new) 에 아카이브 URL + `.sig` 내용을 넣습니다.
+
 ## ONLYOFFICE(eurooffice)와 MIME
 
 같은 MIME을 Viewer에 등록하면 기본 열기 앱 충돌이 날 수 있습니다. 파일 형식별 기본 앱을 조정하세요.
