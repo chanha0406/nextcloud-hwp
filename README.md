@@ -12,6 +12,45 @@ Nextcloud 34용 커스텀 앱 — Viewer에서 `.hwp` / `.hwpx` **열람·편집
 
 업스트림 엔진: [edwardkim/rhwp](https://github.com/edwardkim/rhwp) (MIT)
 
+## 참고한 프로젝트
+
+| 프로젝트 | 참고한 점 |
+|----------|-----------|
+| [edwardkim/rhwp](https://github.com/edwardkim/rhwp) / [@rhwp/core](https://www.npmjs.com/package/@rhwp/core) | 초기 읽기 전용 SVG 렌더, WASM 파서 |
+| [@rhwp/editor](https://www.npmjs.com/package/@rhwp/editor) / rhwp-studio | 편집 UI iframe 임베드, `loadFile` / `exportHwp` / `notifySaved` |
+| [nextcloud/viewer](https://github.com/nextcloud/viewer) | `OCA.Viewer.registerHandler`, `LoadViewer` 이벤트, `active` 슬라이드 프리로드 |
+| [nextcloud/richdocuments](https://github.com/nextcloud/richdocuments) (Collabora) | CSP `allowEvalWasm(true)` 패턴 |
+| [nextcloud/files_pdfviewer](https://github.com/nextcloud/files_pdfviewer) | Viewer 핸들러·`wasm-unsafe-eval` 선행 사례 |
+| eurooffice (ONLYOFFICE, 이 서버에 설치됨) | 동일 HWP MIME을 Viewer에 등록할 때의 충돌·우선순위 이슈 |
+
+이 앱은 위 프로젝트들의 **포크가 아니라** API·패턴을 참고해 Nextcloud 커스텀 앱으로 새로 구성한 것입니다. HWP 엔진/스튜디오 바이너리는 rhwp 업스트림(MIT)을 사용·미러합니다.
+
+## 수정 후 적용 방법
+
+변경 종류에 따라 해야 할 일이 다릅니다.
+
+| 수정한 것 | 해야 할 동작 |
+|-----------|----------------|
+| `src/` (JS) | `npm run build` → 브라우저 **하드 새로고침** (Ctrl+Shift+R) |
+| `css/viewer.css` | 빌드 불필요. 하드 새로고침 |
+| `js/`를 직접 수정 | 빌드 없이 하드 새로고침 (다음 `npm run build` 시 덮어씌워질 수 있음) |
+| `studio/` | 빌드 불필요. 하드 새로고침. 업스트림 갱신은 `./scripts/fetch-studio.sh` |
+| `lib/` · `appinfo/info.xml` (PHP, 버전) | `info.xml` **version**을 올린 뒤 `occ upgrade` (또는 앱 비활성/활성). PHP만 바꾸면 버전 없이 되는 경우도 있으나, 리스너/CSP는 버전 업+upgrade가 안전 |
+| MIME / repair | `occ maintenance:repair --include-expensive` 또는 `occ maintenance:mimetype:update-db --repair-filecache` |
+| Docker에서 파일만 바뀜 | 컨테이너 재시작은 보통 불필요. 정적 파일은 즉시 반영, PHP는 opcache 때문에 수 초~재시작이 필요할 수 있음 |
+
+Docker 예시:
+
+```bash
+cd /ssd1/nextcloud/custom_apps/hwp_viewer   # 또는 ~/Workspace/nextcloud-hwp-viewer
+npm run build
+
+# appinfo version을 올린 경우
+docker exec -u www-data nextcloud-app php occ upgrade
+```
+
+CSP·init 스크립트는 **문서(페이지)를 다시 로드**해야 헤더/스크립트가 갱신됩니다. Viewer 모달만 닫았다 여는 것으로는 부족한 경우가 많습니다.
+
 ## 요구 사항
 
 - Nextcloud **34**
