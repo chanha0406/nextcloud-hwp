@@ -2,10 +2,10 @@
 <info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
 	<id>hwp_viewer</id>
-	<name>HWP Viewer</name>
-	<summary>View and edit HWP and HWPX documents in the Nextcloud Viewer</summary>
+	<name>HWP Documents</name>
+	<summary>Open and edit HWP and HWPX documents in Nextcloud</summary>
 	<description><![CDATA[
-Read/write Hangul Word Processor (.hwp / .hwpx) files inside the Nextcloud Viewer.
+Open Hangul Word Processor (.hwp / .hwpx) files for reading and editing inside Nextcloud.
 Uses a self-hosted rhwp-studio build via @rhwp/editor (WASM), with Save back to WebDAV.
 	]]></description>
 	<version>1.1.0</version>

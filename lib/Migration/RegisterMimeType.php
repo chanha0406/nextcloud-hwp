@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * SPDX-FileCopyrightText: 2026 HWP Viewer contributors
+ * SPDX-FileCopyrightText: 2026 HWP Documents contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
@@ -13,7 +13,7 @@ use OCP\Migration\IOutput;
 
 class RegisterMimeType extends MimeTypeMigration {
 	public function getName(): string {
-		return 'Register MIME types for HWP Viewer';
+		return 'Register MIME types for HWP Documents';
 	}
 
 	public function run(IOutput $output): void {

@@ -1,5 +1,5 @@
 /**
- * SPDX-FileCopyrightText: 2026 HWP Viewer contributors
+ * SPDX-FileCopyrightText: 2026 HWP Documents contributors
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * Vue 2 Options API component for OCA.Viewer (no Vue import).

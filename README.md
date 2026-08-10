@@ -1,6 +1,6 @@
 # nextcloud-hwp-viewer
 
-Nextcloud 34용 커스텀 앱 — Viewer에서 `.hwp` / `.hwpx` **열람·편집**, Save로 WebDAV 저장.
+Nextcloud 34용 커스텀 앱 **HWP Documents** — `.hwp` / `.hwpx` **열람·편집**, Save로 WebDAV 저장.
 
 별도 studio 서버 없이, 앱에 포함한 **self-hosted rhwp-studio**(`studio/`)를 iframe으로 띄웁니다.
 
