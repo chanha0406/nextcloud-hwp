@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
-# Switch Nextcloud between workspace dev checkout and App Store install.
+# Switch Nextcloud between workspace dev deploy and App Store install.
 #
 # Layout:
-#   WORKSPACE  ~/Workspace/hwpdocuments  — git + scripts (edit here)
-#   LIVE       $NC_ROOT/custom_apps/hwpdocuments
+#   WORKSPACE  this git checkout (edit + build here)
+#   LIVE       $NC_ROOT/custom_apps/hwpdocuments  (always a real directory)
 #
-#   dev:   LIVE -> WORKSPACE (symlink; requires Docker mount of WORKSPACE)
-#   store: LIVE is a real App Store directory (symlink removed)
+#   dev:   rsync runtime files WORKSPACE → LIVE, then occ app:enable
+#   store: occ app:install / app:update (App Store managed copy at LIVE)
+#   sync:  redeploy WORKSPACE → LIVE (dev workflow after build)
 #
-# Env: OCC, NEXTCLOUD_ROOT, WORKSPACE_LINK
+# Env: OCC, NEXTCLOUD_ROOT, WORKSPACE (default: ~/Workspace/hwpdocuments)
 set -euo pipefail
 
 APP_ID="hwpdocuments"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Same allow-list as scripts/build-release.sh (runtime only).
+RUNTIME_PATHS=(appinfo css img js lib studio LICENSE README.md)
+
 usage() {
-	sed -n '2,16p' "$0"
+	sed -n '2,17p' "$0"
 	exit "${1:-0}"
 }
 
@@ -35,13 +39,17 @@ resolve_occ() {
 		echo "$OCC"
 		return
 	fi
-	if [[ -n "${NEXTCLOUD_ROOT:-}" && -x "${NEXTCLOUD_ROOT}/occ" ]]; then
-		echo "php ${NEXTCLOUD_ROOT}/occ"
-		return
-	fi
 	if command -v docker >/dev/null 2>&1 \
 		&& docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'nextcloud-app'; then
 		echo "docker exec -u www-data nextcloud-app php occ"
+		return
+	fi
+	if [[ -n "${NC_ROOT:-}" && -x "${NC_ROOT}/occ" ]]; then
+		echo "php ${NC_ROOT}/occ"
+		return
+	fi
+	if [[ -n "${NEXTCLOUD_ROOT:-}" && -x "${NEXTCLOUD_ROOT}/occ" ]]; then
+		echo "php ${NEXTCLOUD_ROOT}/occ"
 		return
 	fi
 	echo ""
@@ -58,12 +66,24 @@ detect_nc_root() {
 		src="$(docker inspect nextcloud-app --format '{{range .Mounts}}{{if eq .Destination "/var/www/html"}}{{.Source}}{{end}}{{end}}')"
 		[[ -n "$src" ]] && realpath "$src" && return
 	fi
-	local real
+	# Host path when the app lives under custom_apps (or a symlink into it).
+	local real parent
 	real="$(realpath "$ROOT")"
 	if [[ "$(basename "$real")" == "$APP_ID" ]]; then
-		realpath "$(dirname "$(dirname "$real")")"
-		return
+		parent="$(dirname "$real")"
+		if [[ "$(basename "$parent")" == "custom_apps" && -x "$(dirname "$parent")/occ" ]]; then
+			realpath "$(dirname "$parent")"
+			return
+		fi
 	fi
+	# Common local installs (workspace checkout is outside Nextcloud tree).
+	local candidate
+	for candidate in /ssd1/nextcloud /var/www/html "$HOME/nextcloud"; do
+		if [[ -x "$candidate/occ" && -d "$candidate/custom_apps" ]]; then
+			realpath "$candidate"
+			return
+		fi
+	done
 	echo ""
 }
 
@@ -84,30 +104,6 @@ is_dev_checkout() {
 	[[ -d "$1/.git" || -f "$1/.git" ]]
 }
 
-live_target() {
-	if [[ -L "$LIVE" ]]; then
-		realpath "$LIVE"
-	elif [[ -d "$LIVE" ]]; then
-		realpath "$LIVE"
-	else
-		echo ""
-	fi
-}
-
-current_mode() {
-	if [[ -L "$LIVE" ]]; then
-		echo "dev"
-	elif [[ -d "$LIVE" && -f "$LIVE/appinfo/info.xml" ]]; then
-		if is_dev_checkout "$LIVE"; then
-			echo "dev"
-		else
-			echo "store"
-		fi
-	else
-		echo "unknown"
-	fi
-}
-
 assert_not_workspace() {
 	local path="$1"
 	local ws_real live_real
@@ -119,38 +115,103 @@ assert_not_workspace() {
 	fi
 }
 
-verify_workspace_in_docker() {
-	[[ -n "$CONTAINER" ]] || return 0
-	if docker exec -u www-data "$CONTAINER" test -d "$WORKSPACE"; then
-		return 0
+ensure_workspace_layout() {
+	local canonical="$HOME/Workspace/$APP_ID"
+	local legacy target ws_real leg_real
+
+	for legacy in "$NC_ROOT/.${APP_ID}-dev" "$NC_ROOT/.hwp-dev"; do
+		[[ -e "$legacy" ]] || continue
+		if [[ -L "$canonical" ]]; then
+			target="$(readlink -f "$canonical")"
+			if [[ "$target" == "$(realpath "$legacy")" ]]; then
+				echo "[switch] migrate workspace: $legacy → $canonical"
+				rm "$canonical"
+				mv "$legacy" "$canonical"
+			fi
+		elif [[ ! -e "$canonical" && -d "$legacy/.git" ]]; then
+			echo "[switch] migrate legacy dev dir: $legacy → $canonical"
+			mkdir -p "$(dirname "$canonical")"
+			mv "$legacy" "$canonical"
+		fi
+	done
+
+	if [[ -d "$canonical/.git" ]]; then
+		ws_real="$(realpath "$canonical")"
+		for legacy in "$NC_ROOT/.${APP_ID}-dev" "$NC_ROOT/.hwp-dev"; do
+			[[ -e "$legacy" ]] || continue
+			leg_real="$(realpath "$legacy")"
+			if [[ "$ws_real" != "$leg_real" ]]; then
+				echo "[switch] remove legacy dev dir: $legacy"
+				rm -rf "$legacy"
+			fi
+		done
 	fi
-	echo "[switch] ERROR: $WORKSPACE is not visible inside $CONTAINER" >&2
-	echo "  Add to docker-compose (app + cron):" >&2
-	echo "    - $WORKSPACE:$WORKSPACE:Z" >&2
-	echo "  Then: docker compose up -d app cron" >&2
-	exit 1
+
+	if [[ -L "$LIVE" ]]; then
+		target="$(readlink -f "$LIVE")"
+		echo "[switch] remove custom_apps symlink: $LIVE -> $target"
+		rm -f "$LIVE"
+	fi
+}
+
+current_mode() {
+	if [[ ! -d "$LIVE/appinfo" || ! -f "$LIVE/appinfo/info.xml" ]]; then
+		echo "unknown"
+		return
+	fi
+	if [[ -f "$LIVE/.install-source" ]] && grep -qx 'workspace' "$LIVE/.install-source"; then
+		echo "dev"
+		return
+	fi
+	if [[ -f "$LIVE/appinfo/signature.json" ]]; then
+		echo "store"
+		return
+	fi
+	# Legacy symlink or manual copy without marker — treat as dev if not store-signed.
+	if is_dev_checkout "$LIVE"; then
+		echo "dev"
+	else
+		echo "unknown"
+	fi
 }
 
 remove_live() {
 	local m
 	m="$(current_mode)"
 	run_occ app:disable "$APP_ID" || true
-	if [[ "$m" == "dev" && -L "$LIVE" ]]; then
-		echo "[switch] remove symlink $LIVE"
-		rm -f "$LIVE"
-	elif [[ "$m" == "store" && -d "$LIVE" && ! -L "$LIVE" ]]; then
+	if [[ -d "$LIVE" || -L "$LIVE" ]]; then
 		assert_not_workspace "$LIVE"
-		echo "[switch] remove App Store copy at $LIVE"
-		run_occ app:remove --keep-data "$APP_ID" || true
-		if [[ -d "$LIVE" ]]; then
-			assert_not_workspace "$LIVE"
-			rm -rf "$LIVE"
-			[[ -n "$CONTAINER" ]] && docker_rm_path "$LIVE" 2>/dev/null || true
+		if [[ "$m" == "store" ]]; then
+			echo "[switch] remove App Store copy at $LIVE"
+			run_occ app:remove --keep-data "$APP_ID" || true
+		else
+			echo "[switch] remove live copy at $LIVE"
 		fi
-	elif [[ -d "$LIVE" || -L "$LIVE" ]]; then
-		assert_not_workspace "$LIVE"
-		rm -rf "$LIVE"
+		if [[ -L "$LIVE" ]]; then
+			rm -f "$LIVE"
+		elif [[ -d "$LIVE" ]]; then
+			rm -rf "$LIVE"
+		fi
+		[[ -n "$CONTAINER" ]] && docker_rm_path "$LIVE" 2>/dev/null || true
 	fi
+}
+
+deploy_workspace_to_live() {
+	echo "[switch] deploy $WORKSPACE → $LIVE"
+	assert_not_workspace "$LIVE"
+	mkdir -p "$LIVE"
+	for path in "${RUNTIME_PATHS[@]}"; do
+		if [[ -d "$WORKSPACE/$path" ]]; then
+			rsync -a --delete "$WORKSPACE/$path/" "$LIVE/$path/"
+		elif [[ -f "$WORKSPACE/$path" ]]; then
+			rsync -a "$WORKSPACE/$path" "$LIVE/$path"
+		else
+			echo "[switch] missing required path: $WORKSPACE/$path" >&2
+			exit 1
+		fi
+	done
+	echo workspace > "$LIVE/.install-source"
+	find "$LIVE" -name '*.map' -type f -delete 2>/dev/null || true
 }
 
 invalidate_appstore_cache() {
@@ -191,30 +252,20 @@ install_from_store() {
 	run_occ app:install "${install_opts[@]}" "$APP_ID"
 }
 
-link_live_to_workspace() {
-	verify_workspace_in_docker
-	assert_not_workspace "$LIVE"
-	rm -f "$LIVE"
-	ln -sfn "$WORKSPACE" "$LIVE"
-	echo "[switch] $LIVE -> $WORKSPACE"
-}
-
 print_status() {
-	local m ver="" target
+	local m ver=""
 	m="$(current_mode)"
-	target="$(live_target)"
 	if [[ -f "$LIVE/appinfo/info.xml" ]]; then
 		ver="$(sed -n 's/.*<version>\([^<]*\)<\/version>.*/\1/p' "$LIVE/appinfo/info.xml" | head -1)"
 	fi
 	echo "mode:      $m"
 	echo "workspace: $WORKSPACE"
 	echo "live:      $LIVE${ver:+  (version $ver)}"
-	[[ -n "$target" ]] && echo "live ->    $target"
 	run_occ app:list 2>/dev/null | grep -i "$APP_ID" || echo "$APP_ID: (not in occ app:list)"
 }
 
-OCC_CMD="$(resolve_occ)"
 NC_ROOT="$(detect_nc_root)"
+OCC_CMD="$(resolve_occ)"
 [[ -n "$NC_ROOT" ]] || { echo "Could not detect NEXTCLOUD_ROOT" >&2; exit 1; }
 [[ -n "$OCC_CMD" ]] || { echo "Could not find occ" >&2; exit 1; }
 
@@ -223,17 +274,26 @@ if [[ "$OCC_CMD" == docker\ exec* ]] && docker ps --format '{{.Names}}' 2>/dev/n
 	CONTAINER="nextcloud-app"
 fi
 
-WORKSPACE="$(realpath "${WORKSPACE_LINK:-$HOME/Workspace/$APP_ID}")"
+WORKSPACE="${WORKSPACE:-$HOME/Workspace/$APP_ID}"
 LIVE="$NC_ROOT/custom_apps/$APP_ID"
+
+ensure_workspace_layout
+if [[ -d "$WORKSPACE" || -L "$WORKSPACE" ]]; then
+	WORKSPACE="$(realpath "$WORKSPACE")"
+fi
 
 if ! is_dev_checkout "$WORKSPACE"; then
 	echo "[switch] missing git checkout at $WORKSPACE" >&2
-	echo "  git clone https://github.com/chanha0406/nextcloud-hwp.git $WORKSPACE" >&2
 	exit 1
 fi
 
 case "$mode" in
 	status) print_status ;;
+	sync)
+		deploy_workspace_to_live
+		run_occ upgrade || true
+		print_status
+		;;
 	store)
 		if [[ "$(current_mode)" == "store" ]]; then
 			echo "[switch] already on App Store copy — updating"
@@ -248,13 +308,12 @@ case "$mode" in
 		print_status
 		;;
 	dev)
-		if [[ "$(current_mode)" == "dev" ]] && [[ "$(live_target)" == "$(realpath "$WORKSPACE")" ]]; then
-			echo "[switch] already linked to workspace"
-		else
+		if [[ "$(current_mode)" == "store" ]]; then
 			remove_live
-			link_live_to_workspace
 		fi
-		run_occ app:enable "$APP_ID"
+		deploy_workspace_to_live
+		run_occ app:enable "$APP_ID" || true
+		run_occ upgrade || true
 		print_status
 		;;
 	*) echo "Unknown mode: $mode" >&2; usage 1 ;;

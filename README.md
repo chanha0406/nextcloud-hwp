@@ -39,15 +39,17 @@ Nextcloud 34용 커스텀 앱 **HWP Documents** — `.hwp` / `.hwpx` **열람·�
 | MIME / repair | `occ maintenance:repair --include-expensive` 또는 `occ maintenance:mimetype:update-db --repair-filecache` |
 | Docker에서 파일만 바뀜 | 컨테이너 재시작은 보통 불필요. 정적 파일은 즉시 반영, PHP는 opcache 때문에 수 초~재시작이 필요할 수 있음 |
 
-Docker 예시:
+Docker 예시 (워크스페이스에서 개발):
 
 ```bash
-cd /ssd1/nextcloud/custom_apps/hwpdocuments   # 또는 ~/Workspace/nextcloud-hwp
+cd ~/Workspace/hwpdocuments
 npm run build
+npm run switch:sync          # custom_apps/hwpdocuments 로 배포
 
-# appinfo version을 올린 경우
-docker exec -u www-data nextcloud-app php occ upgrade
+# appinfo version을 올린 경우 (switch:sync 가 occ upgrade 도 실행)
 ```
+
+스토어 설치본과 전환: `npm run switch:store` / `npm run switch:dev`
 
 CSP·init 스크립트는 **문서(페이지)를 다시 로드**해야 헤더/스크립트가 갱신됩니다. 편집 모달만 닫았다 여는 것으로는 부족한 경우가 많습니다.
 
@@ -73,10 +75,14 @@ docker exec -u www-data nextcloud-app php occ app:enable hwpdocuments
 docker exec -u www-data nextcloud-app php occ upgrade   # 버전 올릴 때
 ```
 
-또는 개발 중에는 Workspace에서 심볼릭 링크:
+개발 중에는 워크스페이스(`~/Workspace/hwpdocuments`)에서 편집·빌드한 뒤 `custom_apps` 로 배포합니다.
+`switch-install.sh` 가 예전 `.hwpdocuments-dev` 심볼릭 링크 레이아웃도 자동 정리합니다.
 
 ```bash
-ln -s ~/Workspace/nextcloud-hwp /path/to/nextcloud/custom_apps/hwpdocuments
+cd ~/Workspace/hwpdocuments
+npm ci && npm run build
+npm run switch:dev           # 최초: 스토어 복사본 제거 후 배포 + 활성화
+npm run switch:sync          # 이후: 빌드 후 custom_apps 에 덮어쓰기
 ```
 
 ## 사용

@@ -14,7 +14,8 @@
     "cert": "scripts/gen-cert.sh",
     "switch:status": "scripts/switch-install.sh status",
     "switch:store": "scripts/switch-install.sh store",
-    "switch:dev": "scripts/switch-install.sh dev"
+    "switch:dev": "scripts/switch-install.sh dev",
+    "switch:sync": "scripts/switch-install.sh sync"
   },
   "dependencies": {
     "@rhwp/core": "^0.8.2",
