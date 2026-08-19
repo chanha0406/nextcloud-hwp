@@ -65,6 +65,84 @@ resolve_occ() {
 	echo ""
 }
 
+docker_occ_container() {
+	local -a tokens
+	# shellcheck disable=SC2206
+	tokens=($1)
+	local i=0
+	local seen_exec=0
+	while (( i < ${#tokens[@]} )); do
+		local t="${tokens[$i]}"
+		if (( seen_exec == 0 )); then
+			if [[ "$t" == "exec" ]]; then
+				seen_exec=1
+			fi
+			i=$((i + 1))
+			continue
+		fi
+		case "$t" in
+			-u|--user|-w|--workdir|-e|--env)
+				i=$((i + 2))
+				continue
+				;;
+			-*)
+				i=$((i + 1))
+				continue
+				;;
+			*)
+				echo "$t"
+				return 0
+				;;
+		esac
+	done
+	return 1
+}
+
+host_to_container_path() {
+	local container="$1"
+	local host_path="$2"
+	local real src dst
+	real="$(realpath "$host_path")"
+	local line
+	while IFS=$'\t' read -r src dst; do
+		[[ -z "$src" ]] && continue
+		local src_real
+		src_real="$(realpath "$src" 2>/dev/null || echo "$src")"
+		if [[ "$real" == "$src_real" || "$real" == "$src_real"/* ]]; then
+			echo "${dst}${real#"$src_real"}"
+			return 0
+		fi
+	done < <(docker inspect "$container" --format '{{range .Mounts}}{{.Source}}{{"\t"}}{{.Destination}}{{println}}{{end}}')
+	return 1
+}
+
+prepare_docker_sign_paths() {
+	local occ_cmd="$1"
+	local container
+	container="$(docker_occ_container "$occ_cmd")"
+	if [[ -z "$container" ]]; then
+		echo "[release] ERROR: could not parse docker container from OCC" >&2
+		return 1
+	fi
+
+	local remote_dir="/tmp/${APP_ID}-certs"
+	docker exec "$container" mkdir -p "$remote_dir"
+	docker cp "$KEY" "$container:$remote_dir/${APP_ID}.key"
+	docker cp "$CRT" "$container:$remote_dir/${APP_ID}.crt"
+	docker exec "$container" chown www-data:www-data "$remote_dir/${APP_ID}.key" "$remote_dir/${APP_ID}.crt"
+	docker exec "$container" chmod 600 "$remote_dir/${APP_ID}.key"
+
+	local stage_in_container
+	if ! stage_in_container="$(host_to_container_path "$container" "$STAGE")"; then
+		echo "[release] ERROR: stage path $STAGE is not mounted in $container" >&2
+		return 1
+	fi
+
+	SIGN_KEY="$remote_dir/${APP_ID}.key"
+	SIGN_CRT="$remote_dir/${APP_ID}.crt"
+	SIGN_PATH="$stage_in_container"
+}
+
 if [[ "$DO_BUILD" -eq 1 ]]; then
 	echo "[release] npm ci && npm run build"
 	cd "$ROOT"
@@ -106,12 +184,19 @@ if [[ "$SIGN" -eq 1 ]]; then
 			echo "[release] WARN: certs found but no occ (set OCC or NEXTCLOUD_ROOT)." >&2
 			echo "[release]        Packaging unsigned integrity; App Store still needs signature.json." >&2
 		else
+			SIGN_KEY="$KEY"
+			SIGN_CRT="$CRT"
+			SIGN_PATH="$STAGE"
+			if [[ "$occ_cmd" == docker\ exec* ]]; then
+				echo "[release] copying certs into docker for occ (host CERT_DIR=$CERT_DIR)"
+				prepare_docker_sign_paths "$occ_cmd"
+			fi
 			echo "[release] integrity:sign-app via: $occ_cmd"
 			# shellcheck disable=SC2086
 			$occ_cmd integrity:sign-app \
-				--privateKey="$KEY" \
-				--certificate="$CRT" \
-				--path="$STAGE"
+				--privateKey="$SIGN_KEY" \
+				--certificate="$SIGN_CRT" \
+				--path="$SIGN_PATH"
 			if [[ ! -f "$STAGE/appinfo/signature.json" ]]; then
 				echo "[release] ERROR: signature.json was not created" >&2
 				exit 1
