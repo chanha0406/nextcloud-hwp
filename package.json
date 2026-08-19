@@ -11,7 +11,10 @@
     "watch": "vite build --mode development --watch",
     "release": "scripts/build-release.sh",
     "release:unsigned": "scripts/build-release.sh --no-sign",
-    "cert": "scripts/gen-cert.sh"
+    "cert": "scripts/gen-cert.sh",
+    "switch:status": "scripts/switch-install.sh status",
+    "switch:store": "scripts/switch-install.sh store",
+    "switch:dev": "scripts/switch-install.sh dev"
   },
   "dependencies": {
     "@rhwp/core": "^0.8.2",
