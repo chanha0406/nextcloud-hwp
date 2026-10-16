@@ -2,7 +2,7 @@ const c = [
   "application/x-hwp",
   "application/x-hwp-v5",
   "application/x-hwpx"
-], u = "1.2.1";
+], u = "1.2.2";
 function w(t) {
   const e = t.includes("?") ? "&" : "?";
   return `${t}${e}v=${u}`;

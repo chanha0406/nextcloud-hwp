@@ -13,7 +13,7 @@ const MIMES = [
 ]
 
 /** Bump with appinfo version so browsers do not reuse stale chunks. */
-const ASSET_VERSION = '1.2.1'
+const ASSET_VERSION = '1.2.2'
 
 /**
  * @param {string} url
