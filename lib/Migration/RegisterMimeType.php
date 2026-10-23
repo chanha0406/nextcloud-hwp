@@ -51,14 +51,29 @@ class RegisterMimeType extends MimeTypeMigration {
 		$obj = [];
 		if (file_exists($filename)) {
 			$content = file_get_contents($filename);
-			$decoded = json_decode((string)$content, true);
-			if (is_array($decoded)) {
-				$obj = $decoded;
+			if ($content === false) {
+				throw new \RuntimeException('Could not read ' . $filename);
 			}
+			$decoded = json_decode($content, true);
+			if (!is_array($decoded)) {
+				throw new \RuntimeException('Refusing to rewrite broken MIME config ' . $filename);
+			}
+			$obj = $decoded;
 		}
 		foreach ($data as $key => $value) {
 			$obj[$key] = $value;
 		}
-		file_put_contents($filename, json_encode($obj, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+		$encoded = json_encode($obj, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+		if ($encoded === false) {
+			throw new \RuntimeException('Could not encode MIME config ' . $filename);
+		}
+		$tmp = $filename . '.hwpdocuments.tmp';
+		if (file_put_contents($tmp, $encoded) === false) {
+			throw new \RuntimeException('Could not write ' . $tmp);
+		}
+		if (!rename($tmp, $filename)) {
+			@unlink($tmp);
+			throw new \RuntimeException('Could not replace ' . $filename);
+		}
 	}
 }

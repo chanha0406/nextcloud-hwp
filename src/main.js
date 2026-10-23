@@ -13,7 +13,7 @@ const MIMES = [
 ]
 
 /** Bump with appinfo version so browsers do not reuse stale chunks. */
-const ASSET_VERSION = '1.2.3'
+const ASSET_VERSION = '1.2.4'
 
 /**
  * @param {string} url
@@ -99,26 +99,48 @@ async function downloadFile(url, signal) {
 	}
 	const buffer = await response.arrayBuffer()
 	console.info('[hwpdocuments] downloaded bytes', buffer.byteLength)
-	return buffer
+	return { buffer, etag: response.headers.get('etag') }
+}
+
+/**
+ * @param {Uint8Array|ArrayBuffer|null|undefined} bytes
+ * @param {boolean} hwpx
+ * @returns {Uint8Array}
+ */
+function documentBytes(bytes, hwpx) {
+	const body = bytes instanceof Uint8Array
+		? bytes
+		: new Uint8Array(bytes || [])
+	const ok = body.byteLength >= 4 && (hwpx
+		? body[0] === 0x50 && body[1] === 0x4b
+		: body[0] === 0xd0 && body[1] === 0xcf && body[2] === 0x11 && body[3] === 0xe0)
+	if (!ok) {
+		throw new Error(hwpx
+			? 'Refusing to save a file that is not HWPX'
+			: 'Refusing to save a file that is not HWP')
+	}
+	return body
 }
 
 /**
  * @param {string} url
  * @param {Uint8Array|ArrayBuffer} bytes
  * @param {string} mime
+ * @param {string|null} etag
  */
-async function uploadFile(url, bytes, mime) {
-	const body = bytes instanceof Uint8Array
-		? bytes
-		: new Uint8Array(bytes)
+async function uploadFile(url, bytes, mime, etag) {
+	const headers = {
+		'Content-Type': mime || 'application/octet-stream',
+		requesttoken: window.oc_requesttoken || '',
+	}
+	if (etag) {
+		headers['If-Match'] = etag
+	}
 	const response = await fetch(url, {
 		method: 'PUT',
 		credentials: 'same-origin',
-		headers: {
-			'Content-Type': mime || 'application/octet-stream',
-			requesttoken: window.oc_requesttoken || '',
-		},
-		body,
+		headers,
+		body: bytes,
 	})
 	if (!response.ok) {
 		throw new Error(`Save failed: HTTP ${response.status}`)
@@ -134,7 +156,9 @@ const HwpDocuments = {
 			saving: false,
 			status: '',
 			error: null,
+			saveError: null,
 			saveMessage: '',
+			fileEtag: null,
 			editor: null,
 			loadToken: 0,
 			loadTimer: null,
@@ -151,8 +175,7 @@ const HwpDocuments = {
 			return this.name || this.basename || this.filename || 'document.hwp'
 		},
 		isHwpx() {
-			const n = String(this.fileName).toLowerCase()
-			return n.endsWith('.hwpx') || this.mime === 'application/x-hwpx'
+			return String(this.fileName).toLowerCase().endsWith('.hwpx')
 		},
 		isActiveSlide() {
 			return this.active !== false
@@ -277,7 +300,9 @@ const HwpDocuments = {
 			this.destroyEditor()
 			this.loading = true
 			this.error = null
+			this.saveError = null
 			this.saveMessage = ''
+			this.fileEtag = null
 			this.loadingUrl = url
 			this.setStatus(this.t('hwpdocuments', 'Starting…'))
 			console.info('[hwpdocuments] load start', { token, url, active: this.active })
@@ -285,7 +310,9 @@ const HwpDocuments = {
 			try {
 				this.setStatus(this.t('hwpdocuments', 'Loading editor and file…'))
 				const createEditor = await loadCreateEditor()
-				const buffer = await downloadFile(url, abort.signal)
+				const downloaded = await downloadFile(url, abort.signal)
+				const buffer = downloaded.buffer
+				this.fileEtag = downloaded.etag
 
 				if (this.isStale(token)) {
 					console.warn('[hwpdocuments] load cancelled after download', { token, current: this.loadToken })
@@ -342,13 +369,20 @@ const HwpDocuments = {
 			}
 			this.saving = true
 			this.saveMessage = this.t('hwpdocuments', 'Saving…')
-			this.error = null
+			this.saveError = null
 			try {
-				const bytes = this.isHwpx
+				const hwpx = this.isHwpx
+				const mimeSaysHwpx = this.mime === 'application/x-hwpx'
+				const mimeSaysHwp = this.mime === 'application/x-hwp' || this.mime === 'application/x-hwp-v5'
+				if ((mimeSaysHwpx && !hwpx) || (mimeSaysHwp && hwpx)) {
+					throw new Error('File extension and type do not match')
+				}
+				const exported = hwpx
 					? await this.editor.exportHwpx()
 					: await this.editor.exportHwp()
-				const mime = this.isHwpx ? 'application/x-hwpx' : 'application/x-hwp'
-				await uploadFile(this.fileUrl, bytes, mime)
+				const bytes = documentBytes(exported, hwpx)
+				const mime = hwpx ? 'application/x-hwpx' : 'application/x-hwp'
+				await uploadFile(this.fileUrl, bytes, mime, this.fileEtag)
 				try {
 					await this.editor.notifySaved(this.fileName)
 				} catch (e) {
@@ -363,7 +397,7 @@ const HwpDocuments = {
 			} catch (e) {
 				console.error('[hwpdocuments] save error:', e)
 				this.saveMessage = ''
-				this.error = `${this.t('hwpdocuments', 'Failed to save.')} (${e?.message || e})`
+				this.saveError = `${this.t('hwpdocuments', 'Failed to save.')} (${e?.message || e})`
 			} finally {
 				this.saving = false
 			}
@@ -383,6 +417,9 @@ const HwpDocuments = {
 			}, this.t('hwpdocuments', 'Save')),
 			this.saveMessage
 				? h('span', { class: 'hwp-documents__save-msg' }, this.saveMessage)
+				: null,
+			this.saveError
+				? h('span', { class: 'hwp-documents__save-msg' }, this.saveError)
 				: null,
 		]))
 

@@ -1,22 +1,22 @@
-const c = [
+const u = [
   "application/x-hwp",
   "application/x-hwp-v5",
   "application/x-hwpx"
-], u = "1.2.3";
-function w(t) {
-  const e = t.includes("?") ? "&" : "?";
-  return `${t}${e}v=${u}`;
-}
+], w = "1.2.4";
 function p(t) {
+  const e = t.includes("?") ? "&" : "?";
+  return `${t}${e}v=${w}`;
+}
+function f(t) {
   let e;
   typeof OC < "u" && typeof OC.filePath == "function" ? e = OC.filePath("hwpdocuments", "js", t) : e = `${typeof OC < "u" && OC.appswebroots?.hwpdocuments ? OC.appswebroots.hwpdocuments : "/custom_apps/hwpdocuments"}/js/${t}`;
   try {
     e = new URL(e, window.location.origin).href;
   } catch {
   }
-  return w(e);
+  return p(e);
 }
-function f() {
+function m() {
   const t = typeof OC < "u" && OC.appswebroots?.hwpdocuments ? OC.appswebroots.hwpdocuments : "/custom_apps/hwpdocuments";
   try {
     return new URL(`${t}/studio/index.html`, window.location.origin).href;
@@ -24,20 +24,20 @@ function f() {
     return `${t}/studio/index.html`;
   }
 }
-let r = null;
-function m() {
-  if (!r) {
-    const t = p("editor/index.js");
-    console.info("[hwpdocuments] importing @rhwp/editor", t), r = import(
+let d = null;
+function g() {
+  if (!d) {
+    const t = f("editor/index.js");
+    console.info("[hwpdocuments] importing @rhwp/editor", t), d = import(
       /* @vite-ignore */
       t
     ).then((e) => e.createEditor).catch((e) => {
-      throw r = null, e;
+      throw d = null, e;
     });
   }
-  return r;
+  return d;
 }
-async function g(t, e) {
+async function v(t, e) {
   console.info("[hwpdocuments] downloading", t);
   const s = await fetch(t, {
     credentials: "same-origin",
@@ -49,22 +49,30 @@ async function g(t, e) {
   if (!s.ok)
     throw new Error(`Download failed: HTTP ${s.status}`);
   const i = await s.arrayBuffer();
-  return console.info("[hwpdocuments] downloaded bytes", i.byteLength), i;
+  return console.info("[hwpdocuments] downloaded bytes", i.byteLength), { buffer: i, etag: s.headers.get("etag") };
 }
-async function v(t, e, s) {
-  const i = e instanceof Uint8Array ? e : new Uint8Array(e), n = await fetch(t, {
+function y(t, e) {
+  const s = t instanceof Uint8Array ? t : new Uint8Array(t || []);
+  if (!(s.byteLength >= 4 && (e ? s[0] === 80 && s[1] === 75 : s[0] === 208 && s[1] === 207 && s[2] === 17 && s[3] === 224)))
+    throw new Error(e ? "Refusing to save a file that is not HWPX" : "Refusing to save a file that is not HWP");
+  return s;
+}
+async function b(t, e, s, i) {
+  const o = {
+    "Content-Type": s,
+    requesttoken: window.oc_requesttoken || ""
+  };
+  i && (o["If-Match"] = i);
+  const n = await fetch(t, {
     method: "PUT",
     credentials: "same-origin",
-    headers: {
-      "Content-Type": s,
-      requesttoken: window.oc_requesttoken || ""
-    },
-    body: i
+    headers: o,
+    body: e
   });
   if (!n.ok)
     throw new Error(`Save failed: HTTP ${n.status}`);
 }
-const y = {
+const S = {
   name: "HwpDocuments",
   data() {
     return {
@@ -72,7 +80,9 @@ const y = {
       saving: !1,
       status: "",
       error: null,
+      saveError: null,
       saveMessage: "",
+      fileEtag: null,
       editor: null,
       loadToken: 0,
       loadTimer: null,
@@ -88,7 +98,7 @@ const y = {
       return this.name || this.basename || this.filename || "document.hwp";
     },
     isHwpx() {
-      return String(this.fileName).toLowerCase().endsWith(".hwpx") || this.mime === "application/x-hwpx";
+      return String(this.fileName).toLowerCase().endsWith(".hwpx");
     },
     isActiveSlide() {
       return this.active !== !1;
@@ -156,35 +166,35 @@ const y = {
       const e = ++this.loadToken;
       this.abortCtrl && this.abortCtrl.abort();
       const s = new AbortController();
-      this.abortCtrl = s, this.destroyEditor(), this.loading = !0, this.error = null, this.saveMessage = "", this.loadingUrl = t, this.setStatus(this.t("hwpdocuments", "Starting…")), console.info("[hwpdocuments] load start", { token: e, url: t, active: this.active });
+      this.abortCtrl = s, this.destroyEditor(), this.loading = !0, this.error = null, this.saveError = null, this.saveMessage = "", this.fileEtag = null, this.loadingUrl = t, this.setStatus(this.t("hwpdocuments", "Starting…")), console.info("[hwpdocuments] load start", { token: e, url: t, active: this.active });
       try {
         this.setStatus(this.t("hwpdocuments", "Loading editor and file…"));
-        const i = await m(), n = await g(t, s.signal);
-        if (this.isStale(e)) {
+        const i = await g(), o = await v(t, s.signal), n = o.buffer;
+        if (this.fileEtag = o.etag, this.isStale(e)) {
           console.warn("[hwpdocuments] load cancelled after download", { token: e, current: this.loadToken });
           return;
         }
         this.loading = !1, await this.$nextTick();
-        const h = this.$refs.editorEl;
-        if (!h)
+        const a = this.$refs.editorEl;
+        if (!a)
           throw new Error("Editor mount point missing");
         this.setStatus(this.t("hwpdocuments", "Starting studio…"));
-        const d = await i(h, {
-          studioUrl: f(),
+        const h = await i(a, {
+          studioUrl: m(),
           width: "100%",
           height: "100%",
           renderer: "canvas2d"
         });
         if (this.isStale(e)) {
-          d.destroy();
+          h.destroy();
           return;
         }
-        this.editor = d, this.setStatus(this.t("hwpdocuments", "Opening document…"));
-        const l = await d.loadFile(n, this.fileName, {
+        this.editor = h, this.setStatus(this.t("hwpdocuments", "Opening document…"));
+        const c = await h.loadFile(n, this.fileName, {
           skipUnsavedGuard: !0,
           suppressDialogs: !0
         });
-        console.info("[hwpdocuments] editor ready", l), this.setStatus(""), this.notifyDone();
+        console.info("[hwpdocuments] editor ready", c), this.setStatus(""), this.notifyDone();
       } catch (i) {
         if (this.isStale(e) || s.signal.aborted) {
           console.warn("[hwpdocuments] load aborted", i?.message || i);
@@ -195,20 +205,23 @@ const y = {
     },
     async saveDocument() {
       if (!(!this.editor || this.saving || !this.fileUrl)) {
-        this.saving = !0, this.saveMessage = this.t("hwpdocuments", "Saving…"), this.error = null;
+        this.saving = !0, this.saveMessage = this.t("hwpdocuments", "Saving…"), this.saveError = null;
         try {
-          const t = this.isHwpx ? await this.editor.exportHwpx() : await this.editor.exportHwp(), e = this.isHwpx ? "application/x-hwpx" : "application/x-hwp";
-          await v(this.fileUrl, t, e);
+          const t = this.isHwpx, e = this.mime === "application/x-hwpx", s = this.mime === "application/x-hwp" || this.mime === "application/x-hwp-v5";
+          if (e && !t || s && t)
+            throw new Error("File extension and type do not match");
+          const i = t ? await this.editor.exportHwpx() : await this.editor.exportHwp(), o = y(i, t), n = t ? "application/x-hwpx" : "application/x-hwp";
+          await b(this.fileUrl, o, n, this.fileEtag);
           try {
             await this.editor.notifySaved(this.fileName);
-          } catch (s) {
-            console.warn("[hwpdocuments] notifySaved skipped", s);
+          } catch (a) {
+            console.warn("[hwpdocuments] notifySaved skipped", a);
           }
           this.saveMessage = this.t("hwpdocuments", "Saved"), setTimeout(() => {
             this.saveMessage === this.t("hwpdocuments", "Saved") && (this.saveMessage = "");
           }, 2500);
         } catch (t) {
-          console.error("[hwpdocuments] save error:", t), this.saveMessage = "", this.error = `${this.t("hwpdocuments", "Failed to save.")} (${t?.message || t})`;
+          console.error("[hwpdocuments] save error:", t), this.saveMessage = "", this.saveError = `${this.t("hwpdocuments", "Failed to save.")} (${t?.message || t})`;
         } finally {
           this.saving = !1;
         }
@@ -225,7 +238,8 @@ const y = {
         },
         on: { click: () => this.saveDocument() }
       }, this.t("hwpdocuments", "Save")),
-      this.saveMessage ? t("span", { class: "hwp-documents__save-msg" }, this.saveMessage) : null
+      this.saveMessage ? t("span", { class: "hwp-documents__save-msg" }, this.saveMessage) : null,
+      this.saveError ? t("span", { class: "hwp-documents__save-msg" }, this.saveError) : null
     ])), this.error ? e.push(t("div", { class: "hwp-documents__error" }, [t("p", this.error)])) : this.loading && e.push(t("div", { class: "hwp-documents__status" }, [
       t("p", this.status || this.t("hwpdocuments", "Loading document…"))
     ])), e.push(t("div", {
@@ -237,7 +251,7 @@ const y = {
     })), t("div", { class: "hwp-documents hwp-documents--editor" }, e);
   }
 };
-function b(t) {
+function E(t) {
   const e = window._oca_viewer_handlers;
   if (e instanceof Map) {
     e.has(t.id) || e.set(t.id, t);
@@ -249,17 +263,17 @@ function b(t) {
   }
   window._oca_viewer_handlers = /* @__PURE__ */ new Map([[t.id, t]]);
 }
-function a(t) {
+function l(t) {
   return window.OCA?.Viewer?.registerHandler ? (window.OCA.Viewer.availableHandlers?.some((e) => e.id === t.id) || window.OCA.Viewer.registerHandler(t), !0) : !1;
 }
-const o = {
+const r = {
   id: "hwpdocuments",
   group: null,
-  mimes: c,
-  component: y
+  mimes: u,
+  component: S
 };
-b(o);
-a(o) || document.addEventListener("DOMContentLoaded", () => a(o));
-setTimeout(() => a(o), 0);
-setTimeout(() => a(o), 500);
+E(r);
+l(r) || document.addEventListener("DOMContentLoaded", () => l(r));
+setTimeout(() => l(r), 0);
+setTimeout(() => l(r), 500);
 //# sourceMappingURL=hwpdocuments-main.mjs.map
