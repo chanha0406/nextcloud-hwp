@@ -13,7 +13,7 @@ const MIMES = [
 ]
 
 /** Bump with appinfo version so browsers do not reuse stale chunks. */
-const ASSET_VERSION = '1.2.4'
+const ASSET_VERSION = '1.2.5'
 
 /**
  * @param {string} url
@@ -145,6 +145,7 @@ async function uploadFile(url, bytes, mime, etag) {
 	if (!response.ok) {
 		throw new Error(`Save failed: HTTP ${response.status}`)
 	}
+	return response.headers.get('etag')
 }
 
 const HwpDocuments = {
@@ -382,7 +383,10 @@ const HwpDocuments = {
 					: await this.editor.exportHwp()
 				const bytes = documentBytes(exported, hwpx)
 				const mime = hwpx ? 'application/x-hwpx' : 'application/x-hwp'
-				await uploadFile(this.fileUrl, bytes, mime, this.fileEtag)
+				const savedEtag = await uploadFile(this.fileUrl, bytes, mime, this.fileEtag)
+				if (savedEtag) {
+					this.fileEtag = savedEtag
+				}
 				try {
 					await this.editor.notifySaved(this.fileName)
 				} catch (e) {

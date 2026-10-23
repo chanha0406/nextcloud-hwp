@@ -8,7 +8,7 @@
 	<summary lang="ko">Nextcloud에서 HWP·HWPX 문서를 열고 편집합니다</summary>
 	<description><![CDATA[Open Hangul Word Processor (.hwp / .hwpx) files for reading and editing inside Nextcloud. Uses a self-hosted rhwp-studio build via @rhwp/editor (WASM), with Save back to WebDAV.]]></description>
 	<description lang="ko"><![CDATA[Nextcloud 안에서 한글(.hwp / .hwpx) 문서를 열고 편집합니다. 앱에 포함한 rhwp-studio(@rhwp/editor, WASM)로 편집하며, 저장 시 WebDAV로 원본 파일에 씁니다.]]></description>
-	<version>1.2.4</version>
+	<version>1.2.5</version>
 	<licence>agpl</licence>
 	<author mail="chanha0406@gmail.com" homepage="https://github.com/chanha0406">chanha0406</author>
 	<namespace>HWPDocuments</namespace>

@@ -2,7 +2,7 @@ const u = [
   "application/x-hwp",
   "application/x-hwp-v5",
   "application/x-hwpx"
-], w = "1.2.4";
+], w = "1.2.5";
 function p(t) {
   const e = t.includes("?") ? "&" : "?";
   return `${t}${e}v=${w}`;
@@ -24,18 +24,18 @@ function m() {
     return `${t}/studio/index.html`;
   }
 }
-let d = null;
+let l = null;
 function g() {
-  if (!d) {
+  if (!l) {
     const t = f("editor/index.js");
-    console.info("[hwpdocuments] importing @rhwp/editor", t), d = import(
+    console.info("[hwpdocuments] importing @rhwp/editor", t), l = import(
       /* @vite-ignore */
       t
     ).then((e) => e.createEditor).catch((e) => {
-      throw d = null, e;
+      throw l = null, e;
     });
   }
-  return d;
+  return l;
 }
 async function v(t, e) {
   console.info("[hwpdocuments] downloading", t);
@@ -71,8 +71,9 @@ async function b(t, e, s, i) {
   });
   if (!n.ok)
     throw new Error(`Save failed: HTTP ${n.status}`);
+  return n.headers.get("etag");
 }
-const S = {
+const E = {
   name: "HwpDocuments",
   data() {
     return {
@@ -175,22 +176,22 @@ const S = {
           return;
         }
         this.loading = !1, await this.$nextTick();
-        const a = this.$refs.editorEl;
-        if (!a)
+        const r = this.$refs.editorEl;
+        if (!r)
           throw new Error("Editor mount point missing");
         this.setStatus(this.t("hwpdocuments", "Starting studio…"));
-        const h = await i(a, {
+        const a = await i(r, {
           studioUrl: m(),
           width: "100%",
           height: "100%",
           renderer: "canvas2d"
         });
         if (this.isStale(e)) {
-          h.destroy();
+          a.destroy();
           return;
         }
-        this.editor = h, this.setStatus(this.t("hwpdocuments", "Opening document…"));
-        const c = await h.loadFile(n, this.fileName, {
+        this.editor = a, this.setStatus(this.t("hwpdocuments", "Opening document…"));
+        const c = await a.loadFile(n, this.fileName, {
           skipUnsavedGuard: !0,
           suppressDialogs: !0
         });
@@ -210,8 +211,8 @@ const S = {
           const t = this.isHwpx, e = this.mime === "application/x-hwpx", s = this.mime === "application/x-hwp" || this.mime === "application/x-hwp-v5";
           if (e && !t || s && t)
             throw new Error("File extension and type do not match");
-          const i = t ? await this.editor.exportHwpx() : await this.editor.exportHwp(), o = y(i, t), n = t ? "application/x-hwpx" : "application/x-hwp";
-          await b(this.fileUrl, o, n, this.fileEtag);
+          const i = t ? await this.editor.exportHwpx() : await this.editor.exportHwp(), o = y(i, t), n = t ? "application/x-hwpx" : "application/x-hwp", r = await b(this.fileUrl, o, n, this.fileEtag);
+          r && (this.fileEtag = r);
           try {
             await this.editor.notifySaved(this.fileName);
           } catch (a) {
@@ -251,7 +252,7 @@ const S = {
     })), t("div", { class: "hwp-documents hwp-documents--editor" }, e);
   }
 };
-function E(t) {
+function S(t) {
   const e = window._oca_viewer_handlers;
   if (e instanceof Map) {
     e.has(t.id) || e.set(t.id, t);
@@ -263,17 +264,17 @@ function E(t) {
   }
   window._oca_viewer_handlers = /* @__PURE__ */ new Map([[t.id, t]]);
 }
-function l(t) {
+function h(t) {
   return window.OCA?.Viewer?.registerHandler ? (window.OCA.Viewer.availableHandlers?.some((e) => e.id === t.id) || window.OCA.Viewer.registerHandler(t), !0) : !1;
 }
-const r = {
+const d = {
   id: "hwpdocuments",
   group: null,
   mimes: u,
-  component: S
+  component: E
 };
-E(r);
-l(r) || document.addEventListener("DOMContentLoaded", () => l(r));
-setTimeout(() => l(r), 0);
-setTimeout(() => l(r), 500);
+S(d);
+h(d) || document.addEventListener("DOMContentLoaded", () => h(d));
+setTimeout(() => h(d), 0);
+setTimeout(() => h(d), 500);
 //# sourceMappingURL=hwpdocuments-main.mjs.map
