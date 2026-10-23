@@ -181,7 +181,7 @@ rm -rf "$STAGE_ROOT"
 mkdir -p "$STAGE" "$OUT_DIR"
 
 # Explicit allow-list: runtime only (no src/, node_modules/, tooling).
-for path in appinfo css img js lib studio LICENSE README.md; do
+for path in appinfo css img js l10n lib studio LICENSE README.md; do
 	if [[ ! -e "$ROOT/$path" ]]; then
 		echo "Missing required path: $path" >&2
 		exit 1
